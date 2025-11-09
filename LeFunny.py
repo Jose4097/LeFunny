@@ -305,6 +305,11 @@ class JumpscareApp(QWidget):
         self.overlay.stop()
         if self.sound:
             self.sound.stop()
+        # Force cleanup the overlay
+        try:
+            self.overlay.stop()
+        except Exception:
+            pass
         self.status_label.setText("Status: OFF")
         self.status_label.setStyleSheet(
             "color: red; font-weight: bold; font-size: 14px;"
@@ -312,6 +317,12 @@ class JumpscareApp(QWidget):
 
     def _do_jumpscare(self):
         try:
+            # Schedule next jumpscare FIRST before anything can crash
+            delay = random.randint(self.min_spin.value(), self.max_spin.value()) * 1000
+            print(f"Next jumpscare in {delay/1000:.1f}s")
+            self.cycle_timer.start(delay)
+
+            # Then attempt the jumpscare
             duration = self._load_selected_jumpscare()
             try:
                 self.sound.setLoopCount(1)
@@ -321,9 +332,7 @@ class JumpscareApp(QWidget):
             self.overlay.play(duration)
         except Exception as e:
             print("Error during jumpscare:", e)
-            delay = random.randint(self.min_spin.value(), self.max_spin.value()) * 1000
-            print(f"Next jumpscare in {delay/1000:.1f}s")
-            self.cycle_timer.start(delay)
+            self.stop()  # Ensure cleanup on error
 
     def try_jumpscare(self):
         try:
