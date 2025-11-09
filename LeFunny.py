@@ -62,6 +62,12 @@ JUMPSCARE_DURATIONS = {
     "Twitch": 3000,
     "Tien": 13600,
     "Smoke": 300,
+    "Fish": 300,
+    "Cheese": 2100,
+    "James": 1000,
+    "LTG": 1000,
+    "Regular": 4800,
+    "Michael": 500,
 }
 
 
@@ -208,6 +214,12 @@ class JumpscareApp(QWidget):
             "Twitch",
             "Tien",
             "Smoke",
+            "Fish",
+            "Cheese",
+            "James",
+            "LTG",
+            "Regular",
+            "Michael",
         ]
         for name in desired_order:
             subdir = ASSETS_DIR / name
