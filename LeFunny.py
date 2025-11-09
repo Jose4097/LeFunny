@@ -164,6 +164,7 @@ class JumpscareApp(QWidget):
 
         self.overlay = OverlayWindow()
         self.sound = QSoundEffect(self)
+        self.current_jumpscare = None  # Track current jumpscare name
         # Set volume to max; You can change it between 0.0 and 1.0
         try:
             self.sound.setVolume(1.0)
@@ -267,30 +268,52 @@ class JumpscareApp(QWidget):
             print("No jumpscares available")
             return SHOW_DURATION_MS
 
-        if self.random_checkbox.isChecked():
-            name = random.choice(list(self.jumpscare_map.keys()))
-        else:
-            name = self.jumpscare_select.currentText()
-
-        gif, wav = self.jumpscare_map.get(name, (None, None))
-        if gif and gif.exists():
-            try:
-                self.overlay.load_animation(gif_path=gif)
-            except Exception as e:
-                print("Failed to load GIF:", e)
         try:
+            # Use the pre-selected jumpscare or get one from the UI
+            name = self.current_jumpscare or self.jumpscare_select.currentText()
+            if not name or name not in self.jumpscare_map:
+                print("Invalid jumpscare selected")
+                return SHOW_DURATION_MS
+
+            # Stop any existing animations and sounds first
+            self.overlay.stop()
             self.sound.stop()
+
+            # Load the resources
+            gif, wav = self.jumpscare_map.get(name, (None, None))
+            if not gif or not gif.exists():
+                print(f"Missing or invalid GIF for {name}")
+                return SHOW_DURATION_MS
+
+            self.overlay.load_animation(gif_path=gif)
+
             if wav and wav.exists():
                 self.sound.setSource(QUrl.fromLocalFile(str(wav)))
             else:
                 self.sound.setSource(QUrl())
-        except Exception as e:
-            print("Sound setup error:", e)
 
-        return JUMPSCARE_DURATIONS.get(name, SHOW_DURATION_MS)
+            return JUMPSCARE_DURATIONS.get(name, SHOW_DURATION_MS)
+
+        except Exception as e:
+            print(f"Error loading jumpscare: {e}")
+            return SHOW_DURATION_MS
 
     def start(self):
-        duration = self._load_selected_jumpscare()
+        # Don't actually load the jumpscare yet, just validate and select one
+        if self.random_checkbox.isChecked():
+            available_jumpscares = list(self.jumpscare_map.keys())
+            if not available_jumpscares:
+                print("No jumpscares available for random selection")
+                return
+            name = random.choice(available_jumpscares)
+            self.current_jumpscare = name
+        else:
+            name = self.jumpscare_select.currentText()
+            if not name or name not in self.jumpscare_map:
+                print("Invalid jumpscare selected")
+                return
+            self.current_jumpscare = name
+
         delay = random.randint(self.min_spin.value(), self.max_spin.value()) * 1000
         print(f"Next jumpscare in {delay/1000:.1f}s")
         self.cycle_timer.start(delay)
@@ -298,41 +321,61 @@ class JumpscareApp(QWidget):
         self.status_label.setStyleSheet(
             "color: green; font-weight: bold; font-size: 14px;"
         )
-        self.current_duration = duration
 
     def stop(self):
         self.cycle_timer.stop()
         self.overlay.stop()
         if self.sound:
             self.sound.stop()
-        # Force cleanup the overlay
         try:
             self.overlay.stop()
         except Exception:
             pass
+        self.current_jumpscare = None  # Clear the current jumpscare
         self.status_label.setText("Status: OFF")
         self.status_label.setStyleSheet(
             "color: red; font-weight: bold; font-size: 14px;"
         )
 
     def _do_jumpscare(self):
+        QApplication.processEvents()
         try:
-            # Schedule next jumpscare FIRST before anything can crash
+            if not self.current_jumpscare and self.random_checkbox.isChecked():
+                print("No jumpscare selected")
+                self.stop()
+                return
+
+            # Load and prepare the jumpscare
+            duration = self._load_selected_jumpscare()
+            if not duration:
+                print("Failed to prepare jumpscare")
+                self.stop()
+                return
+
+            QApplication.processEvents()
+
+            # Play the jumpscare
+            try:
+                self.sound.setLoopCount(1)
+                self.sound.play()
+                self.overlay.play(duration)
+            except Exception as e:
+                print("Error playing jumpscare:", e)
+                self.stop()
+                return
+
+            # Only select new random jumpscare after current one starts successfully
+            if self.random_checkbox.isChecked():
+                self.current_jumpscare = random.choice(list(self.jumpscare_map.keys()))
+
+            # Schedule next jumpscare
             delay = random.randint(self.min_spin.value(), self.max_spin.value()) * 1000
             print(f"Next jumpscare in {delay/1000:.1f}s")
             self.cycle_timer.start(delay)
 
-            # Then attempt the jumpscare
-            duration = self._load_selected_jumpscare()
-            try:
-                self.sound.setLoopCount(1)
-                self.sound.play()
-            except Exception:
-                pass
-            self.overlay.play(duration)
         except Exception as e:
-            print("Error during jumpscare:", e)
-            self.stop()  # Ensure cleanup on error
+            print("Error during jumpscare sequence:", e)
+            self.stop()
 
     def try_jumpscare(self):
         try:
