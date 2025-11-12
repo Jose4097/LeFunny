@@ -6,7 +6,7 @@ Small desktop overlay app that shows random jumpscares on your screen. Each jump
 
 LeFunny displays fullscreen animated jumpscares (GIF or PNG frames) together with a WAV sound. It usually runs on a schedule (random intervals) or be triggered manually via the UI. Settings are controlled from the small "Le Funny - Control" window.
 
-If you are lazy and don't care about the code just install the EXE from the folder dist lmao.
+If you are lazy and don't care about the code just install the EXE from the releases.
 
 Windows will for sure not like running it the first time since it doesn't have a signature but I assure you it's safe, you got the code anyways.
 
